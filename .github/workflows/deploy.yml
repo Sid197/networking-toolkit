@@ -20,7 +20,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm install
-      - run: npm run build
+      - run: node ./node_modules/vite/bin/vite.js build && node scripts-copy-sw.mjs
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
