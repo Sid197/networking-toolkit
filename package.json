@@ -1,0 +1,24 @@
+{
+  "name": "personal-networking-toolkit-pwa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline IPv4 subnet calculator and networking reference toolkit",
+  "scripts": {
+    "start": "vite --host 0.0.0.0",
+    "build": "vite build && node scripts-copy-sw.mjs",
+    "android:add": "cap add android",
+    "android:sync": "npm run build && cap sync android",
+    "android:open": "cap open android",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3",
+    "@capacitor/keyboard": "^7.0.2",
+    "@capacitor/status-bar": "^7.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.3",
+    "vite": "^6.3.5"
+  }
+}
