@@ -1,0 +1,13 @@
+{
+  "name": "personal-networking-toolkit-pwa",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "start": "vite --host 0.0.0.0",
+    "build": "vite build && node scripts-copy-sw.mjs",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "devDependencies": {
+    "vite": "^6.4.4"
+  }
+}
