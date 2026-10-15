@@ -1,113 +1,41 @@
 import './style.css';
-
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
+if ('serviceWorker' in navigator && import.meta.env.PROD) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.error));
+const app=document.querySelector('#app');
+const S={tab:'ipv4',ip:'192.168.0.1',cidr:24,ipv6:'2001:db8::1',v6p:64,check:'192.168.1.10',domain:'example.com',dtype:'A',dns:'',dnsErr:'',plan:26,search:''};
+const $=s=>app.querySelector(s), esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),fmt=n=>Number(n).toLocaleString('en-US');
+function ipN(ip){let a=ip.trim().split('.');if(a.length!==4||a.some(x=>!/^\d{1,3}$/.test(x)||+x>255))return null;return a.reduce((n,x)=>n*256+ +x,0)}
+function ipS(n){return [Math.floor(n/16777216)%256,Math.floor(n/65536)%256,Math.floor(n/256)%256,n%256].join('.')}
+function bin(n){return [24,16,8,0].map(s=>Math.floor(n/2**s)%256).map(x=>x.toString(2).padStart(8,'0')).join('.')}
+function c4(ip,p){let n=ipN(ip);p=+p;if(n===null||p<0||p>32)return null;let z=2**(32-p),net=Math.floor(n/z)*z,b=net+z-1,m=p===0?0:(0xffffffff<<(32-p))>>>0;return{ip,p,net,network:ipS(net),first:p===32?ipS(net):ipS(p===31?net:net+1),last:p===32?ipS(net):ipS(p===31?b:b-1),broadcast:p===32?'Not applicable (/32)':ipS(b),mask:ipS(m),wild:ipS((~m)>>>0),total:z,usable:p===32?1:p===31?2:z-2,binary:bin(n),maskbin:bin(m),end:b}}
+function p6(s){s=s.trim().toLowerCase();if(!s||s.includes('.')||(s.match(/::/g)||[]).length>1)return null;let a=s.split('::'),l=a[0]?a[0].split(':'):[],r=a.length===2&&a[1]?a[1].split(':'):[];if([...l,...r].some(x=>!/^[0-9a-f]{1,4}$/.test(x)))return null;let g;if(a.length===2){let missing=8-l.length-r.length;if(missing<1)return null;g=[...l,...Array(missing).fill('0'),...r]}else g=l;if(g.length!==8)return null;return g.map(x=>parseInt(x,16))}
+function c6(s,p){let g=p6(s);p=+p;if(!g||p<0||p>128)return null;let bits=g.map(x=>x.toString(2).padStart(16,'0')).join(''),nb=bits.slice(0,p).padEnd(128,'0'),ng=Array.from({length:8},(_,i)=>parseInt(nb.slice(i*16,(i+1)*16),2));return{groups:g,expanded:g.map(x=>x.toString(16).padStart(4,'0')).join(':'),network:compress(ng),p,host:128-p,total:(2n**BigInt(128-p)).toString(),binary:bits.match(/.{16}/g).join(':')}}
+function compress(g){let h=g.map(x=>x.toString(16)),bs=-1,bl=1;for(let i=0;i<8;){if(g[i]){i++;continue}let j=i;while(j<8&&!g[j])j++;if(j-i>bl){bs=i;bl=j-i}i=j}if(bs<0)return h.join(':');return h.slice(0,bs).join(':')+'::'+h.slice(bs+bl).join(':')}
+function classify(ip){let a=ip.split('.').map(Number),n=ipN(ip);if(n===null)return null;let [x,y,z]=a,t='Public IPv4 (range-based)',d='Not in the common private/special ranges checked here; reachability is not guaranteed.';if(x===10||(x===172&&y>=16&&y<=31)||(x===192&&y===168)){t='Private IPv4 (RFC 1918)';d='For internal networks; not globally routable directly.'}else if(x===127){t='Loopback';d='Refers to the local host.'}else if(x===169&&y===254){t='Link-local';d='Often self-assigned when DHCP is unavailable.'}else if(x===100&&y>=64&&y<=127){t='Shared address space (CGNAT)';d='Often used by service providers behind carrier-grade NAT.'}else if(x===0){t='Unspecified / this network';d='Special-use range.'}else if(x>=224&&x<=239){t='Multicast';d='One-to-many delivery range.'}else if(x>=240){t='Reserved';d='Reserved or experimental range.'}else if(x===192&&y===0&&z===2){t='Documentation';d='Reserved for examples.'}else if(x===198&&y===51&&z===100){t='Documentation';d='Reserved for examples.'}else if(x===203&&y===0&&z===113){t='Documentation';d='Reserved for examples.'}else if(x===198&&(y===18||y===19)){t='Benchmark testing';d='Reserved for network-device benchmarking.'}return{t,d}}
+function detail(a,b){return `<div class="detail"><span>${esc(a)}</span><strong>${esc(b)}</strong></div>`}
+const prefixes=Array.from({length:25},(_,i)=>i+8);
+const ports=[['FTP control','TCP 21'],['SSH','TCP 22'],['SMTP','TCP 25'],['DNS','TCP/UDP 53'],['DHCP','UDP 67/68'],['HTTP','TCP 80'],['POP3','TCP 110'],['NTP','UDP 123'],['IMAP','TCP 143'],['SNMP','UDP 161/162'],['HTTPS','TCP 443'],['SMB','TCP 445'],['Syslog','UDP 514'],['LDAPS','TCP 636'],['MySQL','TCP 3306'],['RDP','TCP/UDP 3389'],['PostgreSQL','TCP 5432'],['Redis','TCP 6379'],['MongoDB','TCP 27017']];
+const concepts=[['CIDR','Prefix notation such as 192.168.1.0/24.'],['Default gateway','Router address used to reach other networks.'],['DNS','Translates names into records such as A and AAAA.'],['DHCP','Leases IP configuration to clients automatically.'],['VLAN','Separates Layer 2 networks into broadcast domains.'],['NAT','Translates addresses, often sharing public IPv4.'],['TCP','Reliable, ordered, connection-oriented transport.'],['UDP','Datagrams without built-in delivery guarantees.'],['ARP','Maps IPv4 addresses to MAC addresses on a local link.'],['ICMP','Network control/error messages; ping commonly uses Echo.'],['MTU','Maximum packet size carried at a network link.'],['VPN tunnelling','Encapsulates traffic inside another protocol.'],['IPv6','128-bit IP addresses written in hexadecimal groups.'],['Subnetting','Divides an address block into smaller prefixes.']];
+function nav(){return `<header class="hero"><div class="logo">⌘</div><div><h1>Networking Toolkit</h1><p>IPv4 · IPv6 · IP checker · DNS · Subnet planner · References</p></div></header><nav class="tabs">${[['ipv4','IPv4 subnet'],['ipv6','IPv6 tools'],['check','IP checker'],['dns','DNS lookup'],['planner','Subnet planner'],['ref','References'],['practice','Practice']].map(([k,v])=>`<button data-tab="${k}" class="${S.tab===k?'active':''}">${v}</button>`).join('')}</nav>`}
+function ipv4(){let r=c4(S.ip,S.cidr);if(!r)return `<section class="panel"><h2>IPv4 subnet calculator</h2>${ipfields()}<p class="error">Enter a valid IPv4 address.</p></section>`;let rows=[['Input',r.ip+'/'+r.p],['Network address',r.network],['First usable IP',r.first],['Last usable IP',r.last],['Broadcast address',r.broadcast],['Subnet mask',r.mask],['Wildcard mask',r.wild],['Network bits',r.p],['Host bits',32-r.p],['Total IP addresses',fmt(r.total)],['Usable host addresses',fmt(r.usable)]];return `<section class="panel"><h2>IPv4 subnet calculator</h2><div class="input-grid"><div><label for="ip">IPv4 address</label><input id="ip" value="${esc(S.ip)}"></div><div><label for="cidr">CIDR prefix</label><select id="cidr">${prefixes.map(p=>`<option value="${p}" ${p===+S.cidr?'selected':''}>/${p}</option>`).join('')}</select></div></div><div class="actions"><button id="reset" class="secondary">Reset</button><button id="copy" class="primary">Copy results</button></div><div class="details">${rows.map(x=>detail(...x)).join('')}</div><h3>Binary representation</h3><code>${r.binary}</code><label>Subnet mask binary</label><code>${r.maskbin}</code><div class="notice"><b>Gateway:</b> Cannot be determined from CIDR alone; check router/device settings.</div></section>`}
+function ipfields(){return `<label for="ip">IPv4 address</label><input id="ip" value="${esc(S.ip)}"><label for="cidr">CIDR prefix</label><select id="cidr">${prefixes.map(p=>`<option value="${p}" ${p===+S.cidr?'selected':''}>/${p}</option>`).join('')}</select>`}
+function ipv6(){let r=c6(S.ipv6,S.v6p);return `<section class="panel"><h2>IPv6 tools</h2><p class="muted">Basic IPv6 notation and :: compression are supported; IPv4-embedded IPv6 is not supported yet.</p><label for="ipv6">IPv6 address</label><input id="ipv6" value="${esc(S.ipv6)}" placeholder="2001:db8::1"><label for="v6p">Prefix length</label><select id="v6p">${[0,16,24,32,48,56,64,80,96,112,120,124,126,127,128].map(p=>`<option value="${p}" ${p===+S.v6p?'selected':''}>/${p}</option>`).join('')}</select>${!r?'<p class="error">Invalid IPv6 address or prefix.</p>':`<div class="details">${detail('Expanded address',r.expanded)}${detail('Network prefix',r.network+'/'+r.p)}${detail('Host bits',r.host)}${detail('Addresses in prefix',r.total)}</div><h3>Binary representation</h3><code>${r.binary}</code>`}<div class="notice">IPv6 has no broadcast address. /64 is common for LAN subnets; 2001:db8::/32 is reserved for documentation.</div></section>`}
+function checker(){let r=classify(S.check);return `<section class="panel"><h2>IPv4 address checker</h2><label for="check">IPv4 address</label><input id="check" value="${esc(S.check)}" placeholder="192.168.1.10">${r?`<div class="result-card"><span class="eyebrow">Classification</span><h3>${esc(r.t)}</h3><p>${esc(r.d)}</p></div>`:'<p class="error">Enter a valid IPv4 address.</p>'}<h3>Private IPv4 ranges (RFC 1918)</h3><div class="details">${detail('10.0.0.0/8','10.0.0.0 – 10.255.255.255')}${detail('172.16.0.0/12','172.16.0.0 – 172.31.255.255')}${detail('192.168.0.0/16','192.168.0.0 – 192.168.255.255')}</div><p class="muted">Range-based educational classification, not a live reachability or public-IP test.</p></section>`}
+function dns(){return `<section class="panel"><h2>DNS record lookup</h2><p class="muted">Uses Cloudflare DNS-over-HTTPS. Queries are sent to Cloudflare and require internet.</p><label for="domain">Domain name</label><input id="domain" value="${esc(S.domain)}" placeholder="example.com"><label for="dtype">Record type</label><select id="dtype">${['A','AAAA','CNAME','MX','TXT','NS'].map(x=>`<option ${S.dtype===x?'selected':''}>${x}</option>`).join('')}</select><button id="dnsgo" class="primary">Look up DNS</button>${S.dnsErr?`<p class="error">${esc(S.dnsErr)}</p>`:''}${S.dns?`<h3>Results</h3><pre class="dns-result">${esc(S.dns)}</pre>`:''}<div class="notice">A = IPv4, AAAA = IPv6, CNAME = alias, MX = mail, TXT = text, NS = nameservers.</div></section>`}
+async function lookup(){S.dns='';S.dnsErr='';render();let d=S.domain.trim().replace(/\.$/,'');if(!d||!/^[a-z0-9.-]+$/i.test(d)||d.includes('..')){S.dnsErr='Enter a valid domain name.';render();return;}try{let res=await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(d)}&type=${S.dtype}`,{headers:{accept:'application/dns-json'}});if(!res.ok)throw Error('HTTP '+res.status);let data=await res.json();if(data.Status===3)S.dnsErr='NXDOMAIN: resolver reports that this domain does not exist.';else if(data.Status!==0)S.dnsErr='DNS response status: '+data.Status;else{let typ={A:1,AAAA:28,CNAME:5,MX:15,TXT:16,NS:2}[S.dtype],ans=(data.Answer||[]).filter(x=>x.type===typ);S.dns=ans.length?ans.map(x=>`${x.name}  TTL ${x.TTL}  ${x.data}`).join('\n'):'No records of this type returned.'}}catch(e){S.dnsErr='Lookup failed. Check internet access and try again. '+e.message}render()}
+function planner(){let r=c4(S.ip,S.cidr),p=+S.plan,ok=r&&p>=r.p&&p<=32,rows='';if(ok){let count=2**(p-r.p),size=2**(32-p);for(let i=0;i<Math.min(count,256);i++){let n=r.net+i*size,b=n+size-1;rows+=`<tr><td>${i+1}</td><td>${ipS(n)}/${p}</td><td>${p===32?ipS(n):ipS(p===31?n:n+1)}</td><td>${p===32?ipS(n):ipS(p===31?b:b-1)}</td><td>${p>=31?'—':ipS(b)}</td><td>${fmt(size)}</td><td>${fmt(p===32?1:p===31?2:size-2)}</td></tr>`}}return `<section class="panel"><h2>IPv4 subnet planner</h2><p>Divide the parent network into smaller equal-sized subnets.</p><div class="input-grid"><div><label for="ip">Parent IPv4 address</label><input id="ip" value="${esc(S.ip)}"></div><div><label for="cidr">Parent CIDR</label><select id="cidr">${prefixes.map(p=>`<option value="${p}" ${p===+S.cidr?'selected':''}>/${p}</option>`).join('')}</select></div></div><label for="plan">Child subnet prefix</label><select id="plan">${prefixes.map(p=>`<option value="${p}" ${p===+S.plan?'selected':''}>/${p}</option>`).join('')}</select>${!ok?'<p class="error">Child prefix must be equal to or longer than parent prefix.</p>':`<div class="result-card"><h3>${fmt(2**(p-r.p))} child subnets of /${p}</h3><p>${fmt(2**(32-p))} addresses each. Showing at most 256 rows.</p></div><div class="table-wrap"><table><thead><tr><th>#</th><th>Network</th><th>First</th><th>Last</th><th>Broadcast</th><th>Total</th><th>Usable</th></tr></thead><tbody>${rows}</tbody></table></div>`}<div class="notice">AWS reserves five IPv4 addresses per subnet, so AWS-usable counts differ.</div></section>`}
+function refs(){let q=S.search.toLowerCase(),p=ports.filter(x=>x.join(' ').toLowerCase().includes(q)),c=concepts.filter(x=>x.join(' ').toLowerCase().includes(q));return `<section class="panel"><h2>Searchable networking references</h2><label for="search">Search concepts and ports</label><input id="search" value="${esc(S.search)}" placeholder="DNS, TCP, 443, VLAN…"><h3>Common ports</h3><div class="details">${p.map(x=>detail(...x)).join('')||'<p class="muted">No matching ports.</p>'}</div><h3>Networking concepts</h3>${c.map(x=>`<div class="concept"><b>${esc(x[0])}</b><p>${esc(x[1])}</p></div>`).join('')||'<p class="muted">No matching concepts.</p>'}<h3>CIDR quick reference</h3><div class="table-wrap"><table><thead><tr><th>CIDR</th><th>Mask</th><th>Total IPs</th><th>Usable*</th></tr></thead><tbody>${prefixes.map(p=>{let r=c4('192.168.0.1',p);return `<tr><td>/${p}</td><td>${r.mask}</td><td>${fmt(r.total)}</td><td>${fmt(r.usable)}</td></tr>`}).join('')}</tbody></table></div><p class="muted">* Conventional usable counts exclude network/broadcast addresses; /31 and /32 are special cases.</p></section>`}
+function practice(){return `<section class="panel"><h2>Subnetting practice</h2><p>What is the broadcast address of <b>192.168.0.1/26</b>?</p><label for="answer">Your answer</label><input id="answer" placeholder="192.168.0.63"><button class="primary" id="checkanswer">Check answer</button><p id="feedback" class="feedback"></p></section>`}
+function render(){let v={ipv4,ipv6,check:checker,dns,planner,ref:refs,practice};app.innerHTML=nav()+v[S.tab]()+`<footer>Networking Toolkit v2 · Offline calculations · DNS needs internet</footer>`;
+ app.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render()});
+ $('#ip')?.addEventListener('input',e=>{S.ip=e.target.value;refreshKeeping('ip')});$('#cidr')?.addEventListener('change',e=>{S.cidr=+e.target.value;render()});
+ $('#reset')?.addEventListener('click',()=>{S.ip='192.168.0.1';S.cidr=24;render()});
+ $('#copy')?.addEventListener('click',async()=>{let r=c4(S.ip,S.cidr);if(!r)return;let t=`${r.ip}/${r.p}\nNetwork ${r.network}\nFirst ${r.first}\nLast ${r.last}\nBroadcast ${r.broadcast}\nMask ${r.mask}\nWildcard ${r.wild}\nTotal ${r.total}\nUsable ${r.usable}`;try{await navigator.clipboard.writeText(t);$('#copy').textContent='Copied!'}catch{prompt('Copy results',t)}});
+ $('#ipv6')?.addEventListener('input',e=>{S.ipv6=e.target.value;refreshKeeping('ipv6')});$('#v6p')?.addEventListener('change',e=>{S.v6p=+e.target.value;render()});
+ $('#check')?.addEventListener('input',e=>{S.check=e.target.value;refreshKeeping('check')});
+ $('#domain')?.addEventListener('input',e=>S.domain=e.target.value);$('#dtype')?.addEventListener('change',e=>S.dtype=e.target.value);$('#dnsgo')?.addEventListener('click',lookup);
+ $('#plan')?.addEventListener('change',e=>{S.plan=+e.target.value;render()});
+ $('#search')?.addEventListener('input',e=>{S.search=e.target.value;refreshKeeping('search')});
+ $('#checkanswer')?.addEventListener('click',()=>{$('#feedback').textContent=$('#answer').value.trim()==='192.168.0.63'?'Correct!':'Not quite. The /26 block containing .1 ends at .63.'});
 }
-
-const app = document.querySelector('#app');
-const state = { tab: 'calculator', ip: '192.168.0.1', cidr: 24 };
-
-function ipToInt(ip) {
-  const parts = ip.trim().split('.');
-  if (parts.length !== 4 || parts.some(p => !/^\d{1,3}$/.test(p) || Number(p) > 255)) return null;
-  return parts.reduce((n, p) => n * 256 + Number(p), 0);
-}
-function intToIp(n) {
-  return [Math.floor(n / 16777216) % 256, Math.floor(n / 65536) % 256, Math.floor(n / 256) % 256, n % 256].join('.');
-}
-function toBinary(n) {
-  return [24, 16, 8, 0].map(s => (Math.floor(n / 2 ** s) % 256).toString(2).padStart(8, '0')).join('.');
-}
-function calc(ip, prefix) {
-  const n = ipToInt(ip), p = Number(prefix);
-  if (n === null || !Number.isInteger(p) || p < 0 || p > 32) return null;
-  const size = 2 ** (32 - p);
-  const network = Math.floor(n / size) * size;
-  const broadcast = network + size - 1;
-  const mask = p === 0 ? 0 : (0xffffffff << (32 - p)) >>> 0;
-  const conventional = p >= 1 && p <= 30;
-  return {
-    ip, prefix: p, network: intToIp(network), broadcast: p === 32 ? 'Not applicable (/32)' : intToIp(broadcast),
-    first: p === 32 ? intToIp(network) : intToIp(p === 31 ? network : network + 1),
-    last: p === 32 ? intToIp(network) : intToIp(p === 31 ? broadcast : broadcast - 1),
-    mask: intToIp(mask), wildcard: intToIp((~mask) >>> 0), total: size,
-    usable: p === 32 ? 1 : p === 31 ? 2 : size - 2,
-    hostBits: 32 - p, networkBits: p, binary: toBinary(n), maskBinary: toBinary(mask),
-    blockSize: size, networkInt: network, broadcastInt: broadcast, conventional
-  };
-}
-const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const fmt = n => Number(n).toLocaleString('en-US');
-const prefixes = Array.from({length: 25}, (_, i) => i + 8);
-function detail(label, value) {
-  return `<div class="detail"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`;
-}
-function render() {
-  const r = calc(state.ip, state.cidr);
-  app.innerHTML = `
-    <header class="hero">
-      <div class="logo">⌘</div>
-      <div><h1>Networking Toolkit</h1><p>IPv4 subnet calculator · Quick networking references · Works offline</p></div>
-    </header>
-    <nav class="tabs" aria-label="Main navigation">
-      <button data-tab="calculator" class="${state.tab === 'calculator' ? 'active' : ''}">Subnet calculator</button>
-      <button data-tab="reference" class="${state.tab === 'reference' ? 'active' : ''}">Reference toolkit</button>
-      <button data-tab="practice" class="${state.tab === 'practice' ? 'active' : ''}">Practice</button>
-    </nav>
-    ${state.tab === 'calculator' ? calculatorView(r) : state.tab === 'reference' ? referenceView() : practiceView()}
-    <footer>Personal offline toolkit · No account or server required</footer>`;
-  app.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { state.tab = b.dataset.tab; render(); }));
-  const ipInput = app.querySelector('#ip');
-  if (ipInput) ipInput.addEventListener('input', e => { state.ip = e.target.value; const cursor = e.target.selectionStart; render(); const next = app.querySelector('#ip'); next.focus(); next.setSelectionRange(cursor, cursor); });
-  const cidr = app.querySelector('#cidr');
-  if (cidr) cidr.addEventListener('change', e => { state.cidr = Number(e.target.value); render(); });
-  app.querySelector('#reset')?.addEventListener('click', () => { state.ip = '192.168.0.1'; state.cidr = 24; render(); });
-  app.querySelector('#copy')?.addEventListener('click', async () => {
-    const latest = calc(state.ip, state.cidr);
-    if (!latest) return;
-    const text = `IPv4 Subnet Calculator\nIP/CIDR: ${latest.ip}/${latest.prefix}\nNetwork: ${latest.network}\nFirst usable: ${latest.first}\nLast usable: ${latest.last}\nBroadcast: ${latest.broadcast}\nSubnet mask: ${latest.mask}\nWildcard mask: ${latest.wildcard}\nTotal IPs: ${fmt(latest.total)}\nUsable hosts: ${fmt(latest.usable)}\nHost bits: ${latest.hostBits}`;
-    try { await navigator.clipboard.writeText(text); app.querySelector('#copy').textContent = 'Copied!'; }
-    catch { window.prompt('Copy these results:', text); }
-  });
-  app.querySelector('#practiceCheck')?.addEventListener('click', () => {
-    const answer = app.querySelector('#practiceAnswer').value.trim();
-    app.querySelector('#practiceFeedback').textContent = answer === '192.168.0.63' ? 'Correct! The broadcast address for 192.168.0.1/26 is 192.168.0.63.' : 'Not quite. For /26, each subnet contains 64 addresses. Try again.';
-  });
-}
-function calculatorView(r) {
-  if (!r) return `<section class="panel"><h2>Enter an IPv4 address</h2><label for="ip">IPv4 address</label><input id="ip" value="${esc(state.ip)}" placeholder="192.168.0.1"><p class="error">Invalid IPv4 address. Use four octets from 0 to 255.</p><label for="cidr">CIDR prefix</label><select id="cidr">${prefixOptions()}</select></section>`;
-  const rows = [
-    ['Input IP / CIDR', `${r.ip}/${r.prefix}`], ['Network address', r.network], ['First usable IP', r.first],
-    ['Last usable IP', r.last], ['Broadcast address', r.broadcast], ['Subnet mask', r.mask],
-    ['Wildcard mask', r.wildcard], ['CIDR prefix', `/${r.prefix}`], ['Network bits', r.networkBits],
-    ['Host bits', r.hostBits], ['Total IP addresses', fmt(r.total)], ['Usable host addresses', fmt(r.usable)],
-    ['Address block size', fmt(r.blockSize)]
-  ];
-  return `<section class="panel">
-    <div class="input-grid">
-      <div><label for="ip">IPv4 address</label><input id="ip" value="${esc(state.ip)}" placeholder="192.168.0.1" autocomplete="off"><small>Example: 10.0.0.12</small></div>
-      <div><label for="cidr">CIDR prefix</label><select id="cidr">${prefixOptions()}</select><small>Choose /8 through /32</small></div>
-    </div>
-    <div class="actions"><button id="reset" class="secondary">Reset example</button><button id="copy" class="primary">Copy results</button></div>
-    <h2>Subnet details</h2><div class="details">${rows.map(([a,b]) => detail(a,b)).join('')}</div>
-    <div class="notice"><strong>Gateway:</strong> A CIDR calculation cannot determine your actual default gateway. It is configured on the router or device; it may be any usable address in the subnet.</div>
-    ${r.prefix === 31 ? '<div class="notice">A /31 is commonly used for point-to-point links. Both addresses can be used; conventional network/broadcast reservations do not apply.</div>' : ''}
-    ${r.prefix === 32 ? '<div class="notice">A /32 represents one IPv4 address, commonly used for a host route.</div>' : ''}
-    <h2>Binary representation</h2><div class="binary"><label>IP address</label><code>${r.binary}</code><label>Subnet mask</label><code>${r.maskBinary}</code><div class="bitbar"><span style="flex:${r.networkBits}">Network ${r.networkBits} bits</span><span style="flex:${r.hostBits || 0.1}">Host ${r.hostBits} bits</span></div></div>
-    <h2>Subnet range visual</h2><div class="range"><div><span class="dot red"></span><small>Network</small><strong>${r.network}</strong></div><div class="range-line"></div><div><span class="dot green"></span><small>Address in subnet</small><strong>${r.ip}</strong></div><div class="range-line"></div><div><span class="dot red"></span><small>Block end</small><strong>${r.prefix === 32 ? r.network : intToIp(r.broadcastInt)}</strong></div></div>
-  </section>`;
-}
-function prefixOptions() {
-  return prefixes.map(p => `<option value="${p}" ${Number(state.cidr) === p ? 'selected' : ''}>/${p} · ${fmt(2 ** (32-p))} IPs</option>`).join('');
-}
-function referenceView() {
-  const masks = prefixes.map(p => { const c = calc('192.168.0.1', p); return `<tr><td>/${p}</td><td>${c.mask}</td><td>${fmt(c.total)}</td><td>${fmt(c.usable)}${p === 31 ? '*' : p === 32 ? '*' : ''}</td></tr>`; }).join('');
-  return `<section class="panel"><h2>CIDR quick reference</h2><p class="muted">Standard IPv4 subnet sizes and masks.</p><div class="table-wrap"><table><thead><tr><th>CIDR</th><th>Subnet mask</th><th>Total IPs</th><th>Usable hosts</th></tr></thead><tbody>${masks}</tbody></table></div><p class="muted small">* /31 supports two addresses on point-to-point links; /32 represents one address. For /8–/30, conventional usable host count subtracts network and broadcast addresses.</p>
-  <h2>Private IPv4 ranges</h2><div class="details">${detail('10.0.0.0/8','10.0.0.0 – 10.255.255.255')}${detail('172.16.0.0/12','172.16.0.0 – 172.31.255.255')}${detail('192.168.0.0/16','192.168.0.0 – 192.168.255.255')}</div>
-  <h2>Common networking ports</h2><div class="details">${detail('SSH','TCP 22')}${detail('DNS','TCP/UDP 53')}${detail('DHCP','UDP 67/68')}${detail('HTTP','TCP 80')}${detail('HTTPS','TCP 443')}${detail('RDP','TCP/UDP 3389')}${detail('NTP','UDP 123')}${detail('SNMP','UDP 161/162')}</div>
-  <h2>Useful concepts</h2><div class="concept"><strong>Default gateway</strong><p>Router address a host uses to reach networks outside its local subnet.</p></div><div class="concept"><strong>DNS</strong><p>Translates domain names, such as example.com, into IP addresses.</p></div><div class="concept"><strong>DHCP</strong><p>Automatically leases IP settings including address, subnet mask, gateway, and DNS servers.</p></div><div class="concept"><strong>VLAN</strong><p>Logically separates a Layer 2 network into distinct broadcast domains.</p></div><div class="concept"><strong>NAT</strong><p>Translates IP addresses, often allowing private hosts to share a public IPv4 address.</p></div><div class="concept"><strong>TCP vs UDP</strong><p>TCP provides a reliable ordered stream; UDP sends datagrams without a built-in delivery guarantee.</p></div></section>`;
-}
-function practiceView() {
-  return `<section class="panel"><h2>Subnetting practice</h2><p>Question: What is the broadcast address of <strong>192.168.0.1/26</strong>?</p><label for="practiceAnswer">Your answer</label><input id="practiceAnswer" placeholder="e.g. 192.168.0.63"><button id="practiceCheck" class="primary">Check answer</button><p id="practiceFeedback" class="feedback" aria-live="polite"></p><div class="notice">Hint: a /26 subnet contains 64 total addresses. Subnet blocks begin at .0, .64, .128, and .192.</div></section>`;
-}
+function refreshKeeping(id){let el=$('#'+id),pos=el?.selectionStart;render();let next=$('#'+id);if(next){next.focus();if(pos!==undefined)next.setSelectionRange(pos,pos)}}
 render();
