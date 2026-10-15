@@ -1,41 +1,19 @@
-# Networking Toolkit PWA (Option 1)
+# Networking Toolkit PWA v2
 
-Installable offline-capable web app version of the personal Networking Toolkit.
+Includes IPv4 subnet calculator, basic IPv6 prefix calculator, IPv4 range checker, DNS-over-HTTPS lookup, IPv4 subnet planner, searchable port/concept reference, and subnetting practice.
 
-## Requirements
-- Node.js LTS: https://nodejs.org/
-- A GitHub account for free HTTPS hosting: https://github.com/
-
-## Build on Windows
-Extract the ZIP, open PowerShell in the extracted folder, then run:
+## Update the existing repository
+1. Extract this ZIP to a temporary folder.
+2. Copy its contents into `C:\Siddharth\networking-toolkit-pwa`, overwriting existing files. Include the `.github` folder. Do not copy `node_modules` or `dist`.
+3. In PowerShell in the existing project folder, run:
 ```powershell
 npm install
 npm run build
+git add .
+git commit -m "Expand networking toolkit with IPv6 DNS and subnet planner"
+git push
 ```
-The production site is generated in `dist`.
+4. Check https://github.com/Sid197/networking-toolkit/actions for a green check.
+5. Open https://sid197.github.io/networking-toolkit/ on your phone. If an installed PWA shows old files, close and reopen while online or clear the site's cache.
 
-## Publish it using GitHub Pages
-1. Create a GitHub repository named `networking-toolkit`.
-2. Upload the project source files to the repository, including `.github/workflows/deploy.yml`. Do not upload `node_modules` or `dist`.
-3. In the repository, open **Settings → Pages** and set the source to **GitHub Actions**.
-4. Push the project to the `main` branch. The included workflow builds and deploys `dist`.
-5. Your site URL will look like `https://YOUR-USERNAME.github.io/networking-toolkit/`.
-
-## Install on Android
-1. Open the published HTTPS URL in Chrome on your phone or tablet.
-2. Open Chrome's three-dot menu and tap **Install app** or **Add to Home screen**.
-3. Confirm. The app icon appears on your home screen.
-4. Open the app once while online, then test airplane mode.
-
-## Update later
-Edit the source, commit and push to `main`. GitHub Actions deploys the new version. Open the installed app while online to fetch updates.
-
-## Included
-- IPv4 subnet calculator for `/8` through `/32`
-- Network, first/last usable, broadcast, mask and wildcard mask
-- Host counts and binary display
-- CIDR table, private ranges, common ports and networking definitions
-- Simple subnetting practice
-- Offline support and copyable results
-
-The calculator runs locally and does not send entered IPs to a server. Gateway discovery, ping, traceroute and DNS queries are not implemented in this version.
+DNS queries are sent to Cloudflare DNS-over-HTTPS and require internet. IPv4 classification is a local range-based check, not a reachability test. IPv6 supports normal group notation and `::` compression but not IPv4-embedded forms. Subnet planner limits display to 256 child rows. AWS reserves five IPv4 addresses per subnet.
