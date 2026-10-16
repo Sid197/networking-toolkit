@@ -8,3 +8,16 @@
 .progress-track span{display:block;height:100%;background:#1674d1;border-radius:99px;transition:width .2s}
 button.deleteVlan{min-height:34px;padding:7px 10px;font-size:12px}
 button:focus-visible{outline:3px solid #83bdf1;outline-offset:2px}
+
+.speed-hero{display:flex;justify-content:center;padding:16px 0 8px}
+.speed-orb{width:190px;height:190px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:10px solid #dcecfb;background:radial-gradient(circle at center,#f8fcff,#eaf5ff);box-shadow:inset 0 0 0 2px #fff,0 8px 24px #174e8012}
+.speed-orb span{font-size:30px;font-weight:800;color:#174c7a;max-width:150px;overflow-wrap:anywhere;text-align:center}
+.speed-orb small{font-size:12px;color:#60768a}
+.speed-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.speed-metric{border:1px solid #dce5ee;border-radius:12px;padding:13px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.speed-metric span{font-size:12px;color:#63768a}
+.speed-metric strong{font-size:19px;overflow-wrap:anywhere;color:#173e62}
+.speed-progress{display:block;height:8px;width:40%;border-radius:10px;background:#1674d1;animation:speedPulse 1.1s ease-in-out infinite alternate}
+@keyframes speedPulse{from{transform:translateX(0);opacity:.55}to{transform:translateX(140%);opacity:1}}
+button:disabled{opacity:.65;cursor:wait}
+@media(min-width:760px){.speed-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}

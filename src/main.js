@@ -5,7 +5,7 @@ const S={tab:'ipv4',ip:'192.168.0.1',cidr:24,ipv6:'2001:db8::1',v6p:64,check:'19
 labHost:'example.com',labPort:'443',labOs:'Windows',labResult:'',
 vlanName:'Office',vlanId:'10',vlanNetwork:'192.168.10.0/24',vlanGateway:'192.168.10.1',vlanDns:'1.1.1.1',
 commandOs:'Linux',commandTask:'Show IP configuration',commandHost:'example.com',commandPort:'443',
-learnTopic:'Subnetting',learnIndex:0,learnAnswer:'',learnFeedback:'',learnScore:0,learnAnswered:0}; 
+learnTopic:'Subnetting',learnIndex:0,learnAnswer:'',learnFeedback:'',learnScore:0,learnAnswered:0,speedRunning:false,speedStatus:'',speedResults:null}; 
 const STORE_KEY='networking-toolkit-workspace-v3';
 function loadWorkspace(){try{const x=JSON.parse(localStorage.getItem(STORE_KEY)||'{}');if(x.vlans) S.vlans=x.vlans;if(x.learn)Object.assign(S,x.learn)}catch{}}
 function saveWorkspace(){try{localStorage.setItem(STORE_KEY,JSON.stringify({vlans:S.vlans||[],learn:{learnScore:S.learnScore,learnAnswered:S.learnAnswered}}))}catch{}}
@@ -23,7 +23,7 @@ function detail(a,b){return `<div class="detail"><span>${esc(a)}</span><strong>$
 const prefixes=Array.from({length:25},(_,i)=>i+8);
 const ports=[['FTP control','TCP 21'],['SSH','TCP 22'],['SMTP','TCP 25'],['DNS','TCP/UDP 53'],['DHCP','UDP 67/68'],['HTTP','TCP 80'],['POP3','TCP 110'],['NTP','UDP 123'],['IMAP','TCP 143'],['SNMP','UDP 161/162'],['HTTPS','TCP 443'],['SMB','TCP 445'],['Syslog','UDP 514'],['LDAPS','TCP 636'],['MySQL','TCP 3306'],['RDP','TCP/UDP 3389'],['PostgreSQL','TCP 5432'],['Redis','TCP 6379'],['MongoDB','TCP 27017']];
 const concepts=[['CIDR','Prefix notation such as 192.168.1.0/24.'],['Default gateway','Router address used to reach other networks.'],['DNS','Translates names into records such as A and AAAA.'],['DHCP','Leases IP configuration to clients automatically.'],['VLAN','Separates Layer 2 networks into broadcast domains.'],['NAT','Translates addresses, often sharing public IPv4.'],['TCP','Reliable, ordered, connection-oriented transport.'],['UDP','Datagrams without built-in delivery guarantees.'],['ARP','Maps IPv4 addresses to MAC addresses on a local link.'],['ICMP','Network control/error messages; ping commonly uses Echo.'],['MTU','Maximum packet size carried at a network link.'],['VPN tunnelling','Encapsulates traffic inside another protocol.'],['IPv6','128-bit IP addresses written in hexadecimal groups.'],['Subnetting','Divides an address block into smaller prefixes.']];
-function nav(){return `<header class="hero"><div class="logo">⌘</div><div><h1>Networking Toolkit</h1><p>IPv4 · Advanced subnetting · Troubleshooting · VLAN planning · Commands · Learning</p></div></header><nav class="tabs">${[['ipv4','IPv4 subnet'],['advanced','Advanced subnet'],['ipv6','IPv6 tools'],['check','IP checker'],['dns','DNS lookup'],['planner','Subnet planner'],['ipplan','IP & VLAN planner'],['lab','Troubleshooting lab'],['commands','Commands'],['ref','References'],['practice','Learning mode']].map(([k,v])=>`<button data-tab="${k}" class="${S.tab===k?'active':''}">${v}</button>`).join('')}</nav>`}
+function nav(){return `<header class="hero"><div class="logo">⌘</div><div><h1>Networking Toolkit</h1><p>IPv4 · Advanced subnetting · Troubleshooting · VLAN planning · Commands · Learning</p></div></header><nav class="tabs">${[['ipv4','IPv4 subnet'],['advanced','Advanced subnet'],['ipv6','IPv6 tools'],['check','IP checker'],['dns','DNS lookup'],['planner','Subnet planner'],['ipplan','IP & VLAN planner'],['lab','Troubleshooting lab'],['commands','Commands'],['speed','Speed test'],['ref','References'],['practice','Learning mode']].map(([k,v])=>`<button data-tab="${k}" class="${S.tab===k?'active':''}">${v}</button>`).join('')}</nav>`}
 function ipv4(){let r=c4(S.ip,S.cidr);if(!r)return `<section class="panel"><h2>IPv4 subnet calculator</h2>${ipfields()}<p class="error">Enter a valid IPv4 address.</p></section>`;let rows=[['Input',r.ip+'/'+r.p],['Network address',r.network],['First usable IP',r.first],['Last usable IP',r.last],['Broadcast address',r.broadcast],['Subnet mask',r.mask],['Wildcard mask',r.wild],['Network bits',r.p],['Host bits',32-r.p],['Total IP addresses',fmt(r.total)],['Usable host addresses',fmt(r.usable)]];return `<section class="panel"><h2>IPv4 subnet calculator</h2><div class="input-grid"><div><label for="ip">IPv4 address</label><input id="ip" value="${esc(S.ip)}"></div><div><label for="cidr">CIDR prefix</label><select id="cidr">${prefixes.map(p=>`<option value="${p}" ${p===+S.cidr?'selected':''}>/${p}</option>`).join('')}</select></div></div><div class="actions"><button id="reset" class="secondary">Reset</button><button id="copy" class="primary">Copy results</button></div><div class="details">${rows.map(x=>detail(...x)).join('')}</div><h3>Binary representation</h3><code>${r.binary}</code><label>Subnet mask binary</label><code>${r.maskbin}</code><div class="notice"><b>Gateway:</b> Cannot be determined from CIDR alone; check router/device settings.</div></section>`}
 function ipfields(){return `<label for="ip">IPv4 address</label><input id="ip" value="${esc(S.ip)}"><label for="cidr">CIDR prefix</label><select id="cidr">${prefixes.map(p=>`<option value="${p}" ${p===+S.cidr?'selected':''}>/${p}</option>`).join('')}</select>`}
 function ipv6(){let r=c6(S.ipv6,S.v6p);return `<section class="panel"><h2>IPv6 tools</h2><p class="muted">Basic IPv6 notation and :: compression are supported; IPv4-embedded IPv6 is not supported yet.</p><label for="ipv6">IPv6 address</label><input id="ipv6" value="${esc(S.ipv6)}" placeholder="2001:db8::1"><label for="v6p">Prefix length</label><select id="v6p">${[0,16,24,32,48,56,64,80,96,112,120,124,126,127,128].map(p=>`<option value="${p}" ${p===+S.v6p?'selected':''}>/${p}</option>`).join('')}</select>${!r?'<p class="error">Invalid IPv6 address or prefix.</p>':`<div class="details">${detail('Expanded address',r.expanded)}${detail('Network prefix',r.network+'/'+r.p)}${detail('Host bits',r.host)}${detail('Addresses in prefix',r.total)}</div><h3>Binary representation</h3><code>${r.binary}</code>`}<div class="notice">IPv6 has no broadcast address. /64 is common for LAN subnets; 2001:db8::/32 is reserved for documentation.</div></section>`}
@@ -133,7 +133,77 @@ function learning(){
  <div class="notice">Progress is stored in this browser's local storage. Clearing browser site data may erase it. This initial version uses a fixed quiz bank; future expansion can add spaced repetition and more questions.</div></section>`;
 }
 
-function render(){let v={ipv4,advanced:advancedSubnet,ipv6,check:checker,dns,planner,ipplan:ipVlanPlanner,lab:troubleshooting,commands,ref:refs,practice:learning};app.innerHTML=nav()+v[S.tab]()+`<footer>Networking Toolkit v3 · Offline calculations · DNS checks need internet</footer>`;
+
+function speedTest(){
+ const r=S.speedResults;
+ const metric=(name,value,unit='')=>`<div class="speed-metric"><span>${esc(name)}</span><strong>${value===null||value===undefined?'Not measured':esc(value)+(unit?' '+unit:'')}</strong></div>`;
+ return `<section class="panel"><h2>Internet speed test</h2>
+ <p class="muted">Measures download/upload throughput, idle latency, jitter, latency under load, HTTP probe failures, and DNS lookup time using Cloudflare's public speed-test endpoints. Requires internet access.</p>
+ <div class="speed-hero"><div class="speed-orb"><span>${S.speedRunning?'Testing':(r&&r.downloadMbps!==null?esc(r.downloadMbps):'—')}</span><small>${S.speedRunning?'in progress':'Mbps download'}</small></div></div>
+ <div class="actions"><button id="runSpeedTest" class="primary" ${S.speedRunning?'disabled':''}>${S.speedRunning?'Test running…':'Start speed test'}</button><button id="clearSpeedTest" class="secondary" ${S.speedRunning?'disabled':''}>Clear results</button></div>
+ <p class="muted" id="speedStatus" aria-live="polite">${esc(S.speedStatus||'Run a test to measure your connection.')}</p>
+ ${S.speedRunning?'<div class="progress-track"><span class="speed-progress"></span></div>':''}
+ ${r?`<h3>Results</h3><div class="speed-grid">
+ ${metric('Download',r.downloadMbps,'Mbps')}${metric('Upload',r.uploadMbps,'Mbps')}
+ ${metric('Idle latency',r.idleLatency,'ms')}${metric('Jitter (mean delta)',r.jitter,'ms')}
+ ${metric('Loaded latency',r.loadedLatency,'ms')}${metric('Latency increase under load',r.latencyIncrease,'ms')}
+ ${metric('HTTP probe failures',r.probeLoss,'')}${metric('DNS lookup time',r.dnsMs,'ms')}
+ ${metric('Download data',r.downloadMB,'MB')}${metric('Upload data',r.uploadMB,'MB')}
+ </div><p class="muted">Test endpoint: Cloudflare · Completed: ${esc(r.completedAt)}</p>
+ <div class="notice">HTTP probe failures are not ICMP packet loss. Jitter is the mean absolute difference between consecutive HTTP timing samples. Loaded latency is sampled during transfers. Results depend on the endpoint, browser, Wi-Fi, device load, and network conditions.</div>`:''}
+ <h3>How to interpret results</h3><div class="details">
+ ${detail('Download / upload','Higher throughput usually means faster transfers.')}
+ ${detail('Latency','Lower round-trip time generally improves responsiveness.')}
+ ${detail('Jitter','Lower variation is usually better for real-time voice and video.')}
+ ${detail('Latency increase','A large rise during transfer can indicate queueing/bufferbloat.')}
+ ${detail('DNS lookup','Time for a DNS-over-HTTPS query; not a full page-load measurement.')}
+ </div><div class="notice">A browser cannot send raw ICMP packets or guarantee an ISP-grade bufferbloat/packet-loss diagnosis. Metrics are only estimates of what this browser test measures.</div></section>`;
+}
+const SPEED_BASE='https://speed.cloudflare.com';
+async function timedFetch(url,options={},timeoutMs=20000){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs),started=performance.now();
+ try{const response=await fetch(url,{...options,signal:controller.signal,cache:'no-store'});if(!response.ok)throw Error('HTTP '+response.status);return {response,ms:performance.now()-started};}
+ finally{clearTimeout(timer);}
+}
+async function speedProbe(){
+ const x=await timedFetch(`${SPEED_BASE}/__down?bytes=0&cachebust=${Date.now()}-${Math.random()}`,{},10000);
+ await x.response.arrayBuffer();return x.ms;
+}
+async function runSpeedTest(){
+ if(S.speedRunning)return;
+ S.speedRunning=true;S.speedStatus='Checking idle latency…';S.speedResults=null;render();
+ let probes=[],failed=0,downloadMbps=null,uploadMbps=null,loadedSamples=[],downloadMB=null,uploadMB=null,dnsMs=null;
+ const avg=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;
+ try{
+   for(let i=0;i<8;i++){
+     try{probes.push(await speedProbe())}catch{failed++}
+     S.speedStatus=`Measuring idle latency (${i+1}/8)…`;render();
+   }
+   if(!probes.length)throw Error('Speed-test endpoint could not be reached. Check internet access or browser/network restrictions.');
+   const idle=avg(probes),jitter=avg(probes.slice(1).map((x,i)=>Math.abs(x-probes[i])));
+   S.speedStatus='Measuring download throughput and latency under load…';render();
+   let start=performance.now(),loadSamples=[];
+   const dPromise=(async()=>{const {response}=await timedFetch(`${SPEED_BASE}/__down?bytes=10000000&cachebust=${Date.now()}`,{},30000);const buf=await response.arrayBuffer();const sec=(performance.now()-start)/1000;downloadMB=buf.byteLength/1e6;downloadMbps=sec>0?buf.byteLength*8/sec/1e6:null;})();
+   const dProbeLoop=(async()=>{for(let i=0;i<5;i++){try{loadSamples.push(await speedProbe())}catch{failed++}}})();
+   await Promise.all([dPromise,dProbeLoop]);loadedSamples.push(...loadSamples);
+   S.speedStatus='Measuring upload throughput and latency under load…';render();
+   const bytes=1024*1024;const payload=new Uint8Array(bytes);
+   // Randomize a sample of each chunk so compression cannot materially inflate the measured rate.
+   for(let i=0;i<payload.length;i+=65536){crypto.getRandomValues(payload.subarray(i,Math.min(i+65536,payload.length)));}
+   start=performance.now();loadSamples=[];
+   const uPromise=(async()=>{const {response}=await timedFetch(`${SPEED_BASE}/__up?cachebust=${Date.now()}`,{method:'POST',body:payload,headers:{'Content-Type':'application/octet-stream'}},30000);await response.arrayBuffer().catch(()=>new ArrayBuffer(0));const sec=(performance.now()-start)/1000;uploadMB=bytes/1e6;uploadMbps=sec>0?bytes*8/sec/1e6:null;})();
+   const uProbeLoop=(async()=>{for(let i=0;i<5;i++){try{loadSamples.push(await speedProbe())}catch{failed++}}})();
+   await Promise.all([uPromise,uProbeLoop]);loadedSamples.push(...loadSamples);
+   S.speedStatus='Measuring DNS lookup time…';render();
+   try{const t=performance.now();const res=await fetch(`https://cloudflare-dns.com/dns-query?name=example.com&type=A&cachebust=${Date.now()}`,{headers:{accept:'application/dns-json'},cache:'no-store'});if(res.ok){await res.json();dnsMs=performance.now()-t;}}catch{}
+   const loaded=avg(loadedSamples),round=n=>n===null||n===undefined?null:Math.round(n*100)/100;
+   S.speedResults={downloadMbps:round(downloadMbps),uploadMbps:round(uploadMbps),idleLatency:round(idle),jitter:round(jitter),loadedLatency:round(loaded),latencyIncrease:loaded===null?null:round(Math.max(0,loaded-idle)),probeLoss:`${failed}/${8+loadedSamples.length} failed`,dnsMs:round(dnsMs),downloadMB:round(downloadMB),uploadMB:round(uploadMB),completedAt:new Date().toLocaleString()};
+   S.speedStatus='Test completed. Values are estimates from this browser session.';
+ }catch(err){S.speedStatus='Test could not complete: '+(err?.message||'unknown error')+'. The endpoint may be blocked by browser/network policy or CORS.';}
+ finally{S.speedRunning=false;render();}
+}
+
+function render(){let v={ipv4,advanced:advancedSubnet,ipv6,check:checker,dns,planner,ipplan:ipVlanPlanner,lab:troubleshooting,commands,speed:speedTest,ref:refs,practice:learning};app.innerHTML=nav()+v[S.tab]()+`<footer>Networking Toolkit v3 · Offline calculations · DNS checks need internet</footer>`;
  app.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render()});
  $('#ip')?.addEventListener('input',e=>{S.ip=e.target.value;refreshKeeping('ip')});$('#cidr')?.addEventListener('change',e=>{S.cidr=+e.target.value;render()});
  $('#reset')?.addEventListener('click',()=>{S.ip='192.168.0.1';S.cidr=24;render()});
@@ -171,6 +241,8 @@ function render(){let v={ipv4,advanced:advancedSubnet,ipv6,check:checker,dns,pla
  $('#commandHost')?.addEventListener('input',e=>{S.commandHost=e.target.value;const el=$('#generatedCommand');if(el){const opt=(commandCatalog[S.commandOs]||[]).find(x=>x[0]===S.commandTask);el.textContent=(opt?.[1]||'').replaceAll('{host}',S.commandHost||'HOST').replaceAll('{port}',S.commandPort||'PORT')}});
  $('#commandPort')?.addEventListener('input',e=>{S.commandPort=e.target.value;const el=$('#generatedCommand');if(el){const opt=(commandCatalog[S.commandOs]||[]).find(x=>x[0]===S.commandTask);el.textContent=(opt?.[1]||'').replaceAll('{host}',S.commandHost||'HOST').replaceAll('{port}',S.commandPort||'PORT')}});
  $('#copyCommand')?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('#generatedCommand').textContent);$('#copyCommand').textContent='Copied!'}catch{prompt('Copy command',$('#generatedCommand').textContent)}});
+ $('#runSpeedTest')?.addEventListener('click',runSpeedTest);
+ $('#clearSpeedTest')?.addEventListener('click',()=>{S.speedResults=null;S.speedStatus='';render()});
  $('#learnTopic')?.addEventListener('change',e=>{S.learnTopic=e.target.value;S.learnIndex=0;S.learnAnswer='';S.learnFeedback='';render()});
  app.querySelectorAll('input[name="learnAnswer"]').forEach(el=>el.addEventListener('change',e=>S.learnAnswer=e.target.value));
  $('#submitQuiz')?.addEventListener('click',()=>{const items=quiz.filter(x=>S.learnTopic==='All topics'||x.topic===S.learnTopic),q=items[S.learnIndex%Math.max(1,items.length)];if(S.learnAnswer===''){S.learnFeedback='Choose an answer first.';render();return;}if(S.learnFeedback.startsWith('Correct:')||S.learnFeedback.startsWith('Incorrect:'))return;const correct=Number(S.learnAnswer)===q.a;S.learnAnswered++;if(correct)S.learnScore++;S.learnFeedback=(correct?'Correct: ':'Incorrect: ')+q.why;saveWorkspace();render()});
