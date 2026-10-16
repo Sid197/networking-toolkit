@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Personal Networking Toolkit",
   "short_name": "Network Tools",
-  "description": "Offline IPv4 subnet calculator and networking references.",
+  "description": "IPv4, IPv6, DNS and networking references with offline support",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
