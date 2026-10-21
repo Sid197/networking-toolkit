@@ -94,10 +94,3 @@ body[data-theme="dark"] .feedback{background:#123629;color:#b7f3d3}
 
 .brand-copy{min-width:0;flex:1}
 .header-actions{display:flex;align-items:center;gap:12px;margin-left:auto}
-.header-status{display:inline-flex;align-items:center;gap:7px;color:#d5e8ff;font-size:12px;white-space:nowrap}
-.header-status i{width:7px;height:7px;border-radius:50%;background:#54e0a1;box-shadow:0 0 0 4px #54e0a11e}
-.theme-toggle{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;background:#ffffff18;color:white;border:1px solid #ffffff42;padding:9px 12px;min-height:38px;border-radius:10px;font-size:12px}
-.theme-toggle:hover{background:#ffffff28}
-.tab-icon{font-size:14px;line-height:1;color:inherit}
-.tabs button.active .tab-icon{color:white}
-@media(max-width:760px){.header-actions{gap:6px}.header-status{display:none}.theme-toggle{padding:8px 10px}.theme-toggle span{display:none}}
